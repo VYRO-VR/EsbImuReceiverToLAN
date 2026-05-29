@@ -54,16 +54,29 @@ namespace EsbReceiverToLanAndroid {
                     UDPHandler.Endpoint = savedEndpoint;
             }
 
+            // Plug-and-play: default to broadcast discovery when no server IP is
+            // configured so plugging in the dongle starts streaming immediately.
+            if (string.IsNullOrEmpty(UDPHandler.Endpoint) || !System.Net.IPAddress.TryParse(UDPHandler.Endpoint, out _))
+                UDPHandler.Endpoint = "255.255.255.255";
+
             OnDeviceConnected?.Invoke(null, EventArgs.Empty);
             var serviceIntent = new Intent(context, typeof(TrackerListenerService));
             serviceIntent.SetPackage(context.PackageName);
             serviceIntent.SetAction("com.SebaneStudios.EsbReceiverToLanAndroid.ACTION_USB_DEVICE_ATTACHED");
             if (device != null)
                 serviceIntent.PutExtra(UsbManager.ExtraDevice, device);
-            if (AOS.Build.VERSION.SdkInt >= AOS.BuildVersionCodes.O)
-                context.StartForegroundService(serviceIntent);
-            else
-                context.StartService(serviceIntent);
+            try
+            {
+                if (AOS.Build.VERSION.SdkInt >= AOS.BuildVersionCodes.O)
+                    context.StartForegroundService(serviceIntent);
+                else
+                    context.StartService(serviceIntent);
+            }
+            catch (Exception ex)
+            {
+                Platforms.Android.CrashLog.Write("TrackerUsbReceiver.StartService", ex);
+                try { context.StartService(serviceIntent); } catch { /* give up quietly */ }
+            }
         }
     }
 }

@@ -48,6 +48,24 @@ public partial class MainPage : ContentPage
         _refreshTimer.Interval = TimeSpan.FromMilliseconds(50); // 20 Hz for smoother rotation preview
         _refreshTimer.Tick += (_, _) => RefreshTrackerList();
         _refreshTimer.Start();
+
+        ShowPreviousCrashIfAny();
+    }
+
+    private void ShowPreviousCrashIfAny()
+    {
+        var crash = Platforms.Android.CrashLog.ReadLast();
+        if (string.IsNullOrEmpty(crash))
+            return;
+
+        // A crash was captured on a previous run. Surface it so it can be read /
+        // screenshotted on the headset, then clear it so it only shows once.
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            var preview = crash.Length > 1500 ? crash.Substring(0, 1500) + "\n…" : crash;
+            await DisplayAlert("Previous crash detected", preview, "Dismiss");
+            Platforms.Android.CrashLog.Clear();
+        });
     }
 
     protected override void OnDisappearing()
