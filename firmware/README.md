@@ -18,20 +18,22 @@ drives the antenna directly at the nRF52840 internal maximum (+8 dBm).
 
 ## Which board is it?
 
-The two HolyIOT zips both look physically identical; the candidates are:
+The board is the **HolyIOT YJ‑17120** (confirmed): an nRF52840‑QIAA with a chip
+antenna, a single red status LED on **P1.01**, and **no PA/FEM**. The
+`holyiot_yj17120` board definition here matches it.
 
 | Model | Chip | PA/FEM? | Notes |
 | --- | --- | --- | --- |
-| **YJ‑17120** | nRF52840‑QIAA | **No** | Single red LED on **P1.01**. The real nRF52840 design. |
-| YJ‑17076 | (folder mislabels nRF52832 on the main sheet) | **No** | Provided for reference; verify the silkscreen. |
+| **YJ‑17120** (this one) | nRF52840‑QIAA | **No** | Single red LED on P1.01. |
+| YJ‑17076 | nRF52840 | **No** | Other near‑identical HolyIOT stick; schematic in `docs/` for reference. |
 
-Neither has a PA, so **the RF fix is identical and certain for both**. The only
-board‑specific detail is the status LED/button pinout (cosmetic — it does not
-affect range).
+## Prebuilt UF2
 
-The provided board definition is **`holyiot_yj17120`** (LED on P1.01, matching
-the YJ‑17120 schematic). If your stick is actually the 17076 and the LED pin
-differs, adjust `leds` in the `.dts` — RF behaviour is unaffected.
+CI builds a flashable `holyiot_yj17120.uf2` on every change under `firmware/`
+(see `.github/workflows/receiver-firmware.yml`). Grab it from the workflow run's
+artifacts, or from the rolling `receiver-firmware-latest` prerelease after merge
+to `main`. To flash: double‑tap the dongle's reset to enter the UF2 bootloader,
+then copy the `.uf2` onto the mounted drive.
 
 ## Fastest confirmation (no new files)
 
