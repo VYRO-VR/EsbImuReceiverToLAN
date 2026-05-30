@@ -1,3 +1,5 @@
+# VYRO VR Connect
+
 This projects allows extending the range of smol slimes/butterflies by allowing their data to be repeated over UDP via the side of a quest headset, cellphone, ESP32-S3 or any other device with USB port support, and a wifi antenna.
 
 Potential use cases are extending the effective range of the trackers from just 10 meters to the entire range of cell tower service, or the range of wifi routers.
@@ -59,7 +61,7 @@ server IP, it defaults to broadcast discovery so it works without any setup.
 Unhandled exceptions are captured to:
 
 ```
-/sdcard/Android/data/com.SebaneStudios.EsbReceiverToLanAndroid/files/crash.log
+/sdcard/Android/data/com.vyrovr.connect/files/crash.log
 ```
 
 Pull it with `adb pull` (or a file browser over MTP) — no root required. The

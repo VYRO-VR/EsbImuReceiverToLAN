@@ -9,12 +9,14 @@
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationTitle>EsbReceiverToLanAndroid</ApplicationTitle>
-    <ApplicationId>com.SebaneStudios.EsbImuReceiverToLanAndroid</ApplicationId>
+    <ApplicationTitle>VYRO VR Connect</ApplicationTitle>
+    <ApplicationId>com.vyrovr.connect</ApplicationId>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
     <WindowsPackageType>None</WindowsPackageType>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+    <!-- Horizon OS (Quest) supports up to Android API 34; cap targetSdk so Meta accepts the build. -->
+    <AndroidTargetSdkVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">34</AndroidTargetSdkVersion>
     <Configurations>Debug;Release;Release-Phone;Release-Quest</Configurations>
   </PropertyGroup>
 
