@@ -103,23 +103,32 @@ public partial class MainPage : ContentPage
         statusLabel.TextColor = Colors.LightGreen;
         try
         {
-            var found = await ServerScan.FindAsync(TimeSpan.FromSeconds(8));
-            if (found != null)
-            {
-                _serverConfirmed = true;
-                ipEntry.Text = found;
-                UDPHandler.Endpoint = found;
-                File.WriteAllText(Path.Combine(FileSystem.AppDataDirectory, "config.txt"), found);
-                RecentServers.Add(found);
-                RefreshRecents();
-                statusLabel.Text = $"Found SlimeVR at {found}";
-                statusLabel.TextColor = Colors.LightGreen;
-            }
-            else
+            var servers = await ServerScan.FindAllAsync(TimeSpan.FromSeconds(8));
+            if (servers.Count == 0)
             {
                 statusLabel.Text = "No SlimeVR found. Check it's running and on the same Wi-Fi as this headset.";
                 statusLabel.TextColor = Colors.Orange;
+                return;
             }
+
+            DiscoveredServer chosen = servers[0];
+            if (servers.Count > 1)
+            {
+                // Multiple PCs running SlimeVR on this network (e.g. two players):
+                // make the user pick the right one rather than guessing.
+                var labels = servers.Select(s => s.Display).ToArray();
+                var pick = await DisplayActionSheet(
+                    "Multiple SlimeVR servers found — choose your PC:", "Cancel", null, labels);
+                if (string.IsNullOrEmpty(pick) || pick == "Cancel")
+                {
+                    statusLabel.Text = $"{servers.Count} servers found — pick your PC to connect.";
+                    statusLabel.TextColor = Colors.Orange;
+                    return;
+                }
+                chosen = servers.First(s => s.Display == pick);
+            }
+
+            ApplyChosenServer(chosen);
         }
         catch { /* best effort */ }
         finally
@@ -127,6 +136,20 @@ public partial class MainPage : ContentPage
             _scanning = false;
             testButton.IsEnabled = true;
         }
+    }
+
+    private void ApplyChosenServer(DiscoveredServer server)
+    {
+        _serverConfirmed = true;
+        ipEntry.Text = server.Ip;
+        UDPHandler.Endpoint = server.Ip;
+        try { File.WriteAllText(Path.Combine(FileSystem.AppDataDirectory, "config.txt"), server.Ip); } catch { /* best effort */ }
+        RecentServers.Add(server.Ip);
+        RefreshRecents();
+        statusLabel.Text = server.Name == server.Ip
+            ? $"Connected to SlimeVR at {server.Ip}"
+            : $"Connected to {server.Name} ({server.Ip})";
+        statusLabel.TextColor = Colors.LightGreen;
     }
 
     private void CheckDiscoveryTip()

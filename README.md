@@ -14,9 +14,15 @@ The ESB receiver dongle (VID `0x1209`, PID `0x7690`) enumerates as a USB HID
 device and emits fixed 16-byte packets containing per-tracker rotation,
 acceleration, battery and signal data. The host app reads those packets and
 re-emits them to a SlimeVR server over UDP using the SlimeVR feeder protocol
-(`SlimeImuProtocol` submodule). If no server IP is configured, the app
-scans the local network (every host on the /24, on port 6969) to find the
-SlimeVR server automatically.
+(`SlimeImuProtocol` submodule). SlimeVR Server itself is the listener (it binds
+UDP `6969`); the app is just a client that impersonates a normal SlimeVR Wi-Fi
+tracker, so no extra software is needed on the PC.
+
+If no server IP is configured, the app scans the local network (every host on
+the /24, on port 6969) to find the SlimeVR server automatically. If more than
+one SlimeVR server is found — e.g. two players on the same network — the app
+lists each PC (hostname + IP) and lets you pick the right one rather than
+guessing.
 
 ## Projects
 
