@@ -57,6 +57,35 @@ public class TrackerListenerService : Service {
         _running = true;
         _thread = new Thread(HIDTrackerReader);
         _thread.Start();
+
+        // Safety net for the plug-and-play path: if we only have the broadcast
+        // address (which SlimeVR can't actually be reached on), actively scan the
+        // local network for the server and redirect streaming to it once found.
+        // UDPHandler re-handshakes automatically when the endpoint changes.
+        MaybeScanForServer();
+    }
+
+    private void MaybeScanForServer() {
+        var ep = UDPHandler.Endpoint;
+        bool needsScan = string.IsNullOrWhiteSpace(ep) || ep == "255.255.255.255";
+        if (!needsScan) return;
+
+        Task.Run(async () => {
+            try {
+                var ip = await global::EsbReceiverToLanAndroid.ServerScan.FindAsync(TimeSpan.FromSeconds(8));
+                if (!string.IsNullOrEmpty(ip)) {
+                    UDPHandler.Endpoint = ip;
+                    try {
+                        System.IO.File.WriteAllText(
+                            System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.AppDataDirectory, "config.txt"), ip);
+                    } catch { /* best effort */ }
+                    global::EsbReceiverToLanAndroid.RecentServers.Add(ip);
+                    Log.Info("TrackerListenerService", $"Discovered SlimeVR server at {ip}");
+                }
+            } catch (Exception ex) {
+                Log.Warn("TrackerListenerService", $"Server scan failed: {ex.Message}");
+            }
+        });
     }
     public void StopTrackerWork() {
         Log.Info("TrackerListenerService", "Stopping tracker work...");
