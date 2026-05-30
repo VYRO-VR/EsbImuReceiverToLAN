@@ -69,15 +69,20 @@ mirrored to logcat under the `EsbCrash` tag (`adb logcat -s EsbCrash`).
 ## Windows
 
 A lightweight system-tray app (WinForms). It runs in the background with a tray
-icon; right-click for the menu:
+icon and **auto-discovers your SlimeVR server** — in the common case you never
+type an IP. Right-click the tray icon for:
 
+- **Recent servers** — pick a previously used server.
 - **Set SlimeVR IP…** — enter the server address manually (blank = auto-discover).
+  Shows this PC's IP to help you check you're on the same network.
+- **Test connection** — confirms the SlimeVR server actually responds.
 - **Re-discover server** — broadcast on the LAN to find SlimeVR again.
 - **Open data folder** — opens the folder containing `config.txt`.
 - **Exit**.
 
-On first run it auto-discovers the SlimeVR server on the LAN and saves the
-address to `config.txt` next to the executable. Build/run on Windows:
+The status line shows *Searching → Connected to 192.168.x.x*, this PC's IP, and
+whether trackers are detected. If no server is found after ~10s it nudges you to
+check SlimeVR is running and the PC is on the same network. Build/run on Windows:
 
 ```
 dotnet run --project EsbImuReceiverToLAN/EsbImuReceiverToLAN.csproj
