@@ -1,3 +1,5 @@
+# VYRO VR Connect
+
 This projects allows extending the range of smol slimes/butterflies by allowing their data to be repeated over UDP via the side of a quest headset, cellphone, ESP32-S3 or any other device with USB port support, and a wifi antenna.
 
 Potential use cases are extending the effective range of the trackers from just 10 meters to the entire range of cell tower service, or the range of wifi routers.
@@ -12,8 +14,15 @@ The ESB receiver dongle (VID `0x1209`, PID `0x7690`) enumerates as a USB HID
 device and emits fixed 16-byte packets containing per-tracker rotation,
 acceleration, battery and signal data. The host app reads those packets and
 re-emits them to a SlimeVR server over UDP using the SlimeVR feeder protocol
-(`SlimeImuProtocol` submodule). If no server IP is configured, the app
-broadcasts to `255.255.255.255:6969` to auto-discover the server on the LAN.
+(`SlimeImuProtocol` submodule). SlimeVR Server itself is the listener (it binds
+UDP `6969`); the app is just a client that impersonates a normal SlimeVR Wi-Fi
+tracker, so no extra software is needed on the PC.
+
+If no server IP is configured, the app scans the local network (every host on
+the /24, on port 6969) to find the SlimeVR server automatically. If more than
+one SlimeVR server is found — e.g. two players on the same network — the app
+lists each PC (hostname + IP) and lets you pick the right one rather than
+guessing.
 
 ## Projects
 
@@ -52,14 +61,15 @@ the LAN.
 
 Plugging in the dongle fires the `USB_DEVICE_ATTACHED` intent, which launches
 the app and starts the foreground streaming service. If you have not entered a
-server IP, it defaults to broadcast discovery so it works without any setup.
+server IP, the app scans the local network for a SlimeVR server (see below) so
+it works without any setup.
 
 ### Troubleshooting a crash on Quest
 
 Unhandled exceptions are captured to:
 
 ```
-/sdcard/Android/data/com.SebaneStudios.EsbReceiverToLanAndroid/files/crash.log
+/sdcard/Android/data/com.vyrovr.connect/files/crash.log
 ```
 
 Pull it with `adb pull` (or a file browser over MTP) — no root required. The
@@ -76,7 +86,7 @@ type an IP. Right-click the tray icon for:
 - **Set SlimeVR IP…** — enter the server address manually (blank = auto-discover).
   Shows this PC's IP to help you check you're on the same network.
 - **Test connection** — confirms the SlimeVR server actually responds.
-- **Re-discover server** — broadcast on the LAN to find SlimeVR again.
+- **Re-discover server** — scan the local network to find SlimeVR again.
 - **Open data folder** — opens the folder containing `config.txt`.
 - **Exit**.
 

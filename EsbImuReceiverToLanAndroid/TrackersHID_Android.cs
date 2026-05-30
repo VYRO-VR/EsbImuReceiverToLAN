@@ -136,10 +136,10 @@ namespace EsbImuReceiverToLan.Tracking.Trackers.HID
             var permissionIntent = PendingIntent.GetBroadcast(
                 Application.Context,
                 0,
-                new Intent("com.SebaneStudios.USB_PERMISSION"),
+                new Intent("com.vyrovr.connect.USB_PERMISSION"),
                 PendingIntentFlags.Immutable | receiverNotExported);
 
-            var filter = new IntentFilter("com.SebaneStudios.USB_PERMISSION");
+            var filter = new IntentFilter("com.vyrovr.connect.USB_PERMISSION");
 
             string deviceKey = device.DeviceName ?? device.DeviceId.ToString();
             lock (_pendingPermissionRequests)
@@ -749,7 +749,7 @@ namespace EsbImuReceiverToLan.Tracking.Trackers.HID
 
             public override void OnReceive(Context context, Intent intent)
             {
-                if (intent.Action == "com.SebaneStudios.USB_PERMISSION")
+                if (intent.Action == "com.vyrovr.connect.USB_PERMISSION")
                 {
                     UsbDevice device = (UsbDevice)intent.GetParcelableExtra(UsbManager.ExtraDevice);
 

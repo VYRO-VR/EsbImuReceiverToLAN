@@ -57,6 +57,41 @@ public class TrackerListenerService : Service {
         _running = true;
         _thread = new Thread(HIDTrackerReader);
         _thread.Start();
+
+        // Safety net for the plug-and-play path: if we only have the broadcast
+        // address (which SlimeVR can't actually be reached on), actively scan the
+        // local network for the server and redirect streaming to it once found.
+        // UDPHandler re-handshakes automatically when the endpoint changes.
+        MaybeScanForServer();
+    }
+
+    private void MaybeScanForServer() {
+        var ep = UDPHandler.Endpoint;
+        bool needsScan = string.IsNullOrWhiteSpace(ep) || ep == "255.255.255.255";
+        if (!needsScan) return;
+
+        Task.Run(async () => {
+            try {
+                var servers = await global::EsbReceiverToLanAndroid.ServerScan.FindAllAsync(TimeSpan.FromSeconds(8));
+                // Only auto-connect when there is exactly one server. If several PCs
+                // run SlimeVR (e.g. two players), don't guess — leave the endpoint as
+                // broadcast so the UI prompts the user to pick the right PC.
+                if (servers.Count == 1) {
+                    var ip = servers[0].Ip;
+                    UDPHandler.Endpoint = ip;
+                    try {
+                        System.IO.File.WriteAllText(
+                            System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.AppDataDirectory, "config.txt"), ip);
+                    } catch { /* best effort */ }
+                    global::EsbReceiverToLanAndroid.RecentServers.Add(ip);
+                    Log.Info("TrackerListenerService", $"Discovered SlimeVR server at {ip}");
+                } else if (servers.Count > 1) {
+                    Log.Info("TrackerListenerService", $"{servers.Count} SlimeVR servers found; waiting for user to choose.");
+                }
+            } catch (Exception ex) {
+                Log.Warn("TrackerListenerService", $"Server scan failed: {ex.Message}");
+            }
+        });
     }
     public void StopTrackerWork() {
         Log.Info("TrackerListenerService", "Stopping tracker work...");
@@ -162,7 +197,7 @@ public class TrackerListenerService : Service {
         string action = intent?.Action ?? "NO_ACTION";
         Log.Info("TrackerListenerService", $"OnStartCommand receiver action: {action}");
 
-        if (action == "com.SebaneStudios.EsbReceiverToLanAndroid.ACTION_USB_DEVICE_ATTACHED") {
+        if (action == "com.vyrovr.connect.ACTION_USB_DEVICE_ATTACHED") {
             var device = intent?.GetParcelableExtra(UsbManager.ExtraDevice) as UsbDevice;
             if (device != null && device.VendorId == 0x1209 && device.ProductId == 0x7690) {
                 if (_trackersHid != null) {
@@ -174,7 +209,7 @@ public class TrackerListenerService : Service {
             return StartCommandResult.Sticky;
         }
 
-        if (action == "com.SebaneStudios.EsbReceiverToLanAndroid.ACTION_USB_DEVICE_DETACHED") {
+        if (action == "com.vyrovr.connect.ACTION_USB_DEVICE_DETACHED") {
             var device = intent?.GetParcelableExtra(UsbManager.ExtraDevice) as UsbDevice;
             if (device != null) {
                 string deviceKey = device.DeviceName ?? device.DeviceId.ToString();
@@ -190,7 +225,7 @@ public class TrackerListenerService : Service {
             return StartCommandResult.NotSticky;
         }
 
-        if (action == "com.SebaneStudios.EsbReceiverToLanAndroid.ACTION_STOP_SERVICE") {
+        if (action == "com.vyrovr.connect.ACTION_STOP_SERVICE") {
             Log.Info("TrackerListenerService", "Stop service action received.");
             StopTrackerWork();
             StopSelf();

@@ -59,7 +59,7 @@ namespace EsbReceiverToLanAndroid
             TrackerUsbReceiver.OnDeviceConnected?.Invoke(this, EventArgs.Empty);
             var serviceIntent = new Intent(this, typeof(TrackerListenerService));
             serviceIntent.SetPackage(PackageName);
-            serviceIntent.SetAction("com.SebaneStudios.EsbReceiverToLanAndroid.ACTION_USB_DEVICE_ATTACHED");
+            serviceIntent.SetAction("com.vyrovr.connect.ACTION_USB_DEVICE_ATTACHED");
             if (device != null)
                 serviceIntent.PutExtra(UsbManager.ExtraDevice, device);
             StartTrackerService(serviceIntent);

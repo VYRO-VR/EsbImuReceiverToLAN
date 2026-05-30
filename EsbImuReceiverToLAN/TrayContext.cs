@@ -29,6 +29,9 @@ namespace EspImuReceiverToLAN {
         private volatile string? _discoveredIpPending;
         private DateTime _discoveryStartedUtc = DateTime.MinValue;
         private bool _noServerTipShown;
+        private CancellationTokenSource? _scanCts;
+        private volatile List<DiscoveredServer>? _pendingServerChoices;
+        private bool _choosingServer;
 
         public TrayContext() {
             _configPath = Path.Combine(AppContext.BaseDirectory, "config.txt");
@@ -85,13 +88,34 @@ namespace EspImuReceiverToLAN {
             _serverConfirmed = false;
             _noServerTipShown = false;
             _discoveryStartedUtc = DateTime.UtcNow;
-            _discoveryProbe.Start(BroadcastAddress);
+
+            // Broadcast isn't reliable, so scan the local subnet for the server.
+            _scanCts?.Cancel();
+            _scanCts = new CancellationTokenSource();
+            var token = _scanCts.Token;
+            _ = Task.Run(async () => {
+                var servers = await ServerScan.FindAllAsync(TimeSpan.FromSeconds(8), stopAtFirst: false, token);
+                if (token.IsCancellationRequested || servers.Count == 0)
+                    return;
+                if (servers.Count == 1) {
+                    ApplyDiscoveredServer(servers[0].Ip);
+                } else {
+                    // Multiple PCs running SlimeVR (e.g. two players) — let the user pick.
+                    _pendingServerChoices = servers;
+                }
+            });
+
             if (alsoExisting) {
                 try { UDPHandler.ForceUDPClientsToDoHandshake(); } catch { /* best effort */ }
             }
         }
 
-        private void OnServerDiscovered(object? sender, string ip) {
+        // Fired by the per-tracker handlers once a server answers their handshake.
+        private void OnServerDiscovered(object? sender, string ip) => ApplyDiscoveredServer(ip);
+
+        // Single place that records a found/confirmed server. Safe to call from a
+        // background thread; the UI balloon is surfaced by the UI timer.
+        private void ApplyDiscoveredServer(string ip) {
             if (string.IsNullOrEmpty(ip) || !IPAddress.TryParse(ip, out _))
                 return;
 
@@ -99,9 +123,8 @@ namespace EspImuReceiverToLAN {
             try { File.WriteAllText(_configPath, ip); } catch { /* best effort */ }
             RecentServers.Add(ip);
             _serverConfirmed = true;
-            _discoveryProbe.Stop(); // Found it; no need to keep broadcasting.
-
-            // Fires on a background thread; let the UI timer surface the balloon.
+            _scanCts?.Cancel();
+            _discoveryProbe.Stop();
             _discoveredIpPending = ip;
         }
 
@@ -149,23 +172,37 @@ namespace EspImuReceiverToLAN {
         }
 
         private async Task TestConnection() {
-            var target = UDPHandler.Endpoint;
-            if (string.IsNullOrEmpty(target)) target = BroadcastAddress;
+            var endpoint = UDPHandler.Endpoint;
+            bool specific = !string.IsNullOrEmpty(endpoint) && endpoint != BroadcastAddress && IPAddress.TryParse(endpoint, out _);
 
             _testItem.Enabled = false;
             _testItem.Text = "Testing…";
             try {
-                bool ok = await ServerProbe.TestAsync(target, TimeSpan.FromSeconds(6));
-                string where = target == BroadcastAddress ? "on the network" : target;
-                if (ok) {
-                    _serverConfirmed = true;
-                    _notifyIcon.ShowBalloonTip(4000, "ESB IMU Receiver",
-                        $"SlimeVR server responded ({where}). You're good to go.", ToolTipIcon.Info);
+                if (specific) {
+                    bool ok = await ServerProbe.TestAsync(endpoint, TimeSpan.FromSeconds(6));
+                    if (ok) {
+                        _serverConfirmed = true;
+                        _notifyIcon.ShowBalloonTip(4000, "ESB IMU Receiver",
+                            $"SlimeVR server responded at {endpoint}. You're good to go.", ToolTipIcon.Info);
+                    } else {
+                        _notifyIcon.ShowBalloonTip(6000, "ESB IMU Receiver",
+                            $"No response from SlimeVR at {endpoint}.\n" +
+                            $"Check SlimeVR is running and this PC ({_localIp}) is on the same network.",
+                            ToolTipIcon.Warning);
+                    }
                 } else {
-                    _notifyIcon.ShowBalloonTip(6000, "ESB IMU Receiver",
-                        $"No response from SlimeVR {where}.\n" +
-                        $"Check SlimeVR Server is running and this PC ({_localIp}) is on the same network.",
-                        ToolTipIcon.Warning);
+                    // No specific IP: scan the subnet to find any server.
+                    var found = await ServerScan.FindAsync(TimeSpan.FromSeconds(8));
+                    if (found != null) {
+                        ApplyDiscoveredServer(found);
+                        _notifyIcon.ShowBalloonTip(4000, "ESB IMU Receiver",
+                            $"Found SlimeVR server at {found}.", ToolTipIcon.Info);
+                    } else {
+                        _notifyIcon.ShowBalloonTip(6000, "ESB IMU Receiver",
+                            $"No SlimeVR server found on this network.\n" +
+                            $"Check SlimeVR is running and this PC ({_localIp}) is on the same network.",
+                            ToolTipIcon.Warning);
+                    }
                 }
             } catch {
                 /* best effort */
@@ -192,6 +229,20 @@ namespace EspImuReceiverToLAN {
             }
         }
 
+        private void PromptServerChoice(List<DiscoveredServer> servers) {
+            _choosingServer = true;
+            try {
+                var labels = servers.Select(s => s.Display).ToArray();
+                var pick = ChoiceBox.Show(
+                    "Multiple SlimeVR servers were found on this network.\nChoose the PC to send tracking data to:",
+                    "Select your PC", labels);
+                if (pick >= 0 && pick < servers.Count)
+                    SelectServer(servers[pick].Ip);
+            } finally {
+                _choosingServer = false;
+            }
+        }
+
         private void OpenDataFolder() {
             try {
                 Process.Start(new ProcessStartInfo { FileName = AppContext.BaseDirectory, UseShellExecute = true });
@@ -209,6 +260,13 @@ namespace EspImuReceiverToLAN {
                 _discoveredIpPending = null;
                 _notifyIcon.ShowBalloonTip(3000, "ESB IMU Receiver",
                     $"Connected to SlimeVR at {discovered}", ToolTipIcon.Info);
+            }
+
+            // Multiple SlimeVR servers found — prompt (on the UI thread) for the right PC.
+            var choices = _pendingServerChoices;
+            if (choices != null && !_choosingServer) {
+                _pendingServerChoices = null;
+                PromptServerChoice(choices);
             }
 
             // After ~10s with no server found, nudge the user about the usual cause.
@@ -259,6 +317,7 @@ namespace EspImuReceiverToLAN {
             if (disposing) {
                 _uiTimer?.Stop();
                 _uiTimer?.Dispose();
+                _scanCts?.Cancel();
                 _discoveryProbe?.Dispose();
                 if (_notifyIcon != null) {
                     _notifyIcon.Visible = false;
