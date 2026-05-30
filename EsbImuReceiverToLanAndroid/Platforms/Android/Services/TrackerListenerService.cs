@@ -72,8 +72,12 @@ public class TrackerListenerService : Service {
 
         Task.Run(async () => {
             try {
-                var ip = await global::EsbReceiverToLanAndroid.ServerScan.FindAsync(TimeSpan.FromSeconds(8));
-                if (!string.IsNullOrEmpty(ip)) {
+                var servers = await global::EsbReceiverToLanAndroid.ServerScan.FindAllAsync(TimeSpan.FromSeconds(8));
+                // Only auto-connect when there is exactly one server. If several PCs
+                // run SlimeVR (e.g. two players), don't guess — leave the endpoint as
+                // broadcast so the UI prompts the user to pick the right PC.
+                if (servers.Count == 1) {
+                    var ip = servers[0].Ip;
                     UDPHandler.Endpoint = ip;
                     try {
                         System.IO.File.WriteAllText(
@@ -81,6 +85,8 @@ public class TrackerListenerService : Service {
                     } catch { /* best effort */ }
                     global::EsbReceiverToLanAndroid.RecentServers.Add(ip);
                     Log.Info("TrackerListenerService", $"Discovered SlimeVR server at {ip}");
+                } else if (servers.Count > 1) {
+                    Log.Info("TrackerListenerService", $"{servers.Count} SlimeVR servers found; waiting for user to choose.");
                 }
             } catch (Exception ex) {
                 Log.Warn("TrackerListenerService", $"Server scan failed: {ex.Message}");
