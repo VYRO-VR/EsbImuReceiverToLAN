@@ -5,6 +5,7 @@ using EsbReceiverToLanAndroid.Platforms.Android.Services;
 using EsbReceiverToLanAndroid.Views;
 using SlimeImuProtocol.SlimeVR;
 using System.Net;
+using System.Net.Sockets;
 using System.Numerics;
 
 namespace EsbReceiverToLanAndroid;
@@ -19,18 +20,117 @@ public partial class MainPage : ContentPage
     private readonly Dictionary<string, Vector3> _previousAcceleration = new();
     private const float AccelDeltaThreshold = 1f; // Accelerometer change (m/s² scale) to count as moving
 
+    private List<string> _recentList = new();
+    private bool _serverConfirmed;
+    private bool _noServerTipShown;
+    private DateTime _discoveryStartedUtc = DateTime.MinValue;
+
     public MainPage()
     {
         InitializeComponent();
         LoadConfig();
+        InitializeConnectionUi();
         _ = typeof(TrackerUsbReceiver);
         TrackerUsbReceiver.OnDeviceConnected += OnDeviceConnected;
         TrackerUsbReceiver.OnDeviceDisconnected += OnDeviceDisconnected;
         SlimeImuProtocol.SlimeVR.UDPHandler.OnServerDiscovered += OnServerDiscovered;
     }
 
+    private void InitializeConnectionUi()
+    {
+        deviceIpLabel.Text = $"This device's IP: {GetLocalIPv4()}";
+        RefreshRecents();
+    }
+
+    private void RefreshRecents()
+    {
+        _recentList = RecentServers.Load();
+        recentPicker.ItemsSource = _recentList;
+        recentPicker.IsVisible = _recentList.Count > 0;
+    }
+
+    private void RecentPicker_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (recentPicker.SelectedIndex < 0 || recentPicker.SelectedIndex >= _recentList.Count)
+            return;
+        ipEntry.Text = _recentList[recentPicker.SelectedIndex];
+    }
+
+    private async void TestButton_Clicked(object? sender, EventArgs e)
+    {
+        var target = ipEntry.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(target) || !IPAddress.TryParse(target, out _))
+        {
+            // No explicit IP typed: test the current server if we have one,
+            // otherwise broadcast to see if any server answers.
+            var ep = UDPHandler.Endpoint;
+            target = (!string.IsNullOrEmpty(ep) && ep != "255.255.255.255" && IPAddress.TryParse(ep, out _))
+                ? ep : "255.255.255.255";
+        }
+
+        testButton.IsEnabled = false;
+        statusLabel.Text = "Testing connection…";
+        statusLabel.TextColor = Colors.LightGreen;
+        try
+        {
+            bool ok = await ServerProbe.TestAsync(target, TimeSpan.FromSeconds(6));
+            if (ok)
+            {
+                _serverConfirmed = true;
+                statusLabel.Text = target == "255.255.255.255"
+                    ? "SlimeVR server responded ✓"
+                    : $"SlimeVR responded at {target} ✓";
+                statusLabel.TextColor = Colors.LightGreen;
+                RecentServers.Add(target);
+                RefreshRecents();
+            }
+            else
+            {
+                statusLabel.Text = "No response. Check SlimeVR is running and on the same Wi-Fi.";
+                statusLabel.TextColor = Colors.Orange;
+            }
+        }
+        catch
+        {
+            /* best effort */
+        }
+        finally
+        {
+            testButton.IsEnabled = true;
+        }
+    }
+
+    private void CheckDiscoveryTip()
+    {
+        if (!_serverConfirmed && !_noServerTipShown && _discoveryStartedUtc != DateTime.MinValue
+            && (DateTime.UtcNow - _discoveryStartedUtc) > TimeSpan.FromSeconds(10))
+        {
+            _noServerTipShown = true;
+            statusLabel.Text = "Still searching… make sure SlimeVR is running and this headset is on the same Wi-Fi as your PC.";
+            statusLabel.TextColor = Colors.Orange;
+        }
+    }
+
+    private static string GetLocalIPv4()
+    {
+        try
+        {
+            using var s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            s.Connect("8.8.8.8", 65530); // selects the outbound interface; sends nothing
+            return (s.LocalEndPoint as IPEndPoint)?.Address.ToString() ?? "unknown";
+        }
+        catch
+        {
+            return "unknown";
+        }
+    }
+
     private void OnServerDiscovered(object? sender, string ip)
     {
+        if (string.IsNullOrWhiteSpace(ip))
+            return;
+        _serverConfirmed = true;
+        RecentServers.Add(ip);
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (string.IsNullOrWhiteSpace(ipEntry.Text) || ipEntry.Text == "255.255.255.255")
@@ -38,6 +138,9 @@ public partial class MainPage : ContentPage
                 ipEntry.Text = ip;
                 File.WriteAllText(Path.Combine(FileSystem.AppDataDirectory, "config.txt"), ip);
             }
+            statusLabel.Text = $"Connected to SlimeVR at {ip}";
+            statusLabel.TextColor = Colors.LightGreen;
+            RefreshRecents();
         });
     }
 
@@ -99,6 +202,7 @@ public partial class MainPage : ContentPage
 
     private void RefreshTrackerList()
     {
+        CheckDiscoveryTip();
         var snapshot = TrackerListenerService.Instance?.GetTrackerSnapshot();
         MainThread.BeginInvokeOnMainThread(() => UpdateTrackerUI(snapshot));
     }
@@ -240,9 +344,16 @@ public partial class MainPage : ContentPage
                 if (endpoint != "255.255.255.255")
                 {
                     File.WriteAllText(Path.Combine(FileSystem.AppDataDirectory, "config.txt"), endpoint);
+                    RecentServers.Add(endpoint);
+                    RefreshRecents();
                 }
 
-                statusLabel.Text = (endpoint == "255.255.255.255") ? "Discovering..." : "Starting...";
+                // Track discovery so we can nudge the user if no server answers.
+                _serverConfirmed = endpoint != "255.255.255.255";
+                _noServerTipShown = false;
+                _discoveryStartedUtc = (endpoint == "255.255.255.255") ? DateTime.UtcNow : DateTime.MinValue;
+
+                statusLabel.Text = (endpoint == "255.255.255.255") ? "Searching for SlimeVR…" : "Starting…";
                 statusLabel.TextColor = Colors.LightGreen;
 
                 if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.O)

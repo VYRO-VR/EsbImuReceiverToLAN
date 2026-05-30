@@ -19,12 +19,22 @@
                    Padding="16" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Connection" FontAttributes="Bold" TextColor="{StaticResource Gray200}" />
-                    <Entry x:Name="ipEntry" Placeholder="Destination IP address"
+                    <Label x:Name="helpLabel"
+                           Text="Leave the address blank to auto-detect your SlimeVR server. Keep this headset on the same Wi-Fi as your PC."
+                           TextColor="{StaticResource Gray400}" FontSize="12" />
+                    <Label x:Name="deviceIpLabel" Text="" TextColor="{StaticResource Gray500}" FontSize="12" />
+                    <Picker x:Name="recentPicker" Title="Recent servers" IsVisible="False"
+                            TextColor="{StaticResource Gray100}" TitleColor="{StaticResource Gray500}"
+                            SelectedIndexChanged="RecentPicker_SelectedIndexChanged" />
+                    <Entry x:Name="ipEntry" Placeholder="SlimeVR IP (optional — blank = auto)"
                            PlaceholderColor="{StaticResource Gray500}" TextColor="{StaticResource Gray100}"
                            BackgroundColor="{StaticResource Gray950}" />
                     <HorizontalStackLayout Spacing="8">
                         <Button x:Name="startButton" Text="Start" Clicked="StartButton_Clicked"
                                 BackgroundColor="{StaticResource Primary}" TextColor="White"
+                                HorizontalOptions="FillAndExpand" />
+                        <Button x:Name="testButton" Text="Test" Clicked="TestButton_Clicked"
+                                BackgroundColor="{StaticResource Gray600}" TextColor="{StaticResource Gray200}"
                                 HorizontalOptions="FillAndExpand" />
                         <Button x:Name="refreshButton" Text="Refresh" Clicked="RefreshButton_Clicked"
                                 BackgroundColor="{StaticResource Gray600}" TextColor="{StaticResource Gray200}"
