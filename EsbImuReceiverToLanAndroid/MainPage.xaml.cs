@@ -23,6 +23,8 @@ public partial class MainPage : ContentPage
     private List<string> _recentList = new();
     private bool _serverConfirmed;
     private bool _noServerTipShown;
+    private bool _scanning;
+    private bool _autoScanDone;
     private DateTime _discoveryStartedUtc = DateTime.MinValue;
 
     public MainPage()
@@ -59,43 +61,70 @@ public partial class MainPage : ContentPage
     private async void TestButton_Clicked(object? sender, EventArgs e)
     {
         var target = ipEntry.Text?.Trim();
-        if (string.IsNullOrWhiteSpace(target) || !IPAddress.TryParse(target, out _))
+        if (!string.IsNullOrWhiteSpace(target) && IPAddress.TryParse(target, out _))
         {
-            // No explicit IP typed: test the current server if we have one,
-            // otherwise broadcast to see if any server answers.
-            var ep = UDPHandler.Endpoint;
-            target = (!string.IsNullOrEmpty(ep) && ep != "255.255.255.255" && IPAddress.TryParse(ep, out _))
-                ? ep : "255.255.255.255";
+            // A specific IP is typed: confirm that exact server responds.
+            testButton.IsEnabled = false;
+            statusLabel.Text = "Testing connection…";
+            statusLabel.TextColor = Colors.LightGreen;
+            try
+            {
+                bool ok = await ServerProbe.TestAsync(target, TimeSpan.FromSeconds(6));
+                if (ok)
+                {
+                    _serverConfirmed = true;
+                    statusLabel.Text = $"SlimeVR responded at {target} ✓";
+                    statusLabel.TextColor = Colors.LightGreen;
+                    RecentServers.Add(target);
+                    RefreshRecents();
+                }
+                else
+                {
+                    statusLabel.Text = "No response. Check SlimeVR is running and on the same Wi-Fi.";
+                    statusLabel.TextColor = Colors.Orange;
+                }
+            }
+            catch { /* best effort */ }
+            finally { testButton.IsEnabled = true; }
         }
+        else
+        {
+            // No IP typed: scan the network to find the server automatically.
+            await ScanForServerAsync();
+        }
+    }
 
+    private async Task ScanForServerAsync()
+    {
+        if (_scanning) return;
+        _scanning = true;
         testButton.IsEnabled = false;
-        statusLabel.Text = "Testing connection…";
+        statusLabel.Text = "Scanning network for SlimeVR…";
         statusLabel.TextColor = Colors.LightGreen;
         try
         {
-            bool ok = await ServerProbe.TestAsync(target, TimeSpan.FromSeconds(6));
-            if (ok)
+            var found = await ServerScan.FindAsync(TimeSpan.FromSeconds(8));
+            if (found != null)
             {
                 _serverConfirmed = true;
-                statusLabel.Text = target == "255.255.255.255"
-                    ? "SlimeVR server responded ✓"
-                    : $"SlimeVR responded at {target} ✓";
-                statusLabel.TextColor = Colors.LightGreen;
-                RecentServers.Add(target);
+                ipEntry.Text = found;
+                UDPHandler.Endpoint = found;
+                File.WriteAllText(Path.Combine(FileSystem.AppDataDirectory, "config.txt"), found);
+                RecentServers.Add(found);
                 RefreshRecents();
+                statusLabel.Text = $"Found SlimeVR at {found}";
+                statusLabel.TextColor = Colors.LightGreen;
             }
             else
             {
-                statusLabel.Text = "No response. Check SlimeVR is running and on the same Wi-Fi.";
+                statusLabel.Text = "No SlimeVR found. Check it's running and on the same Wi-Fi as this headset.";
                 statusLabel.TextColor = Colors.Orange;
             }
         }
-        catch
-        {
-            /* best effort */
-        }
+        catch { /* best effort */ }
         finally
         {
+            _scanning = false;
             testButton.IsEnabled = true;
         }
     }
@@ -153,6 +182,13 @@ public partial class MainPage : ContentPage
         _refreshTimer.Start();
 
         ShowPreviousCrashIfAny();
+
+        // Auto-find the server on first show when nothing is configured yet.
+        if (!_autoScanDone && (string.IsNullOrWhiteSpace(ipEntry.Text) || ipEntry.Text == "255.255.255.255"))
+        {
+            _autoScanDone = true;
+            _ = ScanForServerAsync();
+        }
     }
 
     private void ShowPreviousCrashIfAny()
@@ -382,9 +418,10 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private void RefreshButton_Clicked(object? sender, EventArgs e)
+    private async void RefreshButton_Clicked(object? sender, EventArgs e)
     {
-        UDPHandler.ForceUDPClientsToDoHandshake();
+        try { UDPHandler.ForceUDPClientsToDoHandshake(); } catch { /* best effort */ }
+        await ScanForServerAsync();
     }
 
     private void LoadConfig()
