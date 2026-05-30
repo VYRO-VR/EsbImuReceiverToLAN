@@ -15,7 +15,8 @@ device and emits fixed 16-byte packets containing per-tracker rotation,
 acceleration, battery and signal data. The host app reads those packets and
 re-emits them to a SlimeVR server over UDP using the SlimeVR feeder protocol
 (`SlimeImuProtocol` submodule). If no server IP is configured, the app
-broadcasts to `255.255.255.255:6969` to auto-discover the server on the LAN.
+scans the local network (every host on the /24, on port 6969) to find the
+SlimeVR server automatically.
 
 ## Projects
 
@@ -54,7 +55,8 @@ the LAN.
 
 Plugging in the dongle fires the `USB_DEVICE_ATTACHED` intent, which launches
 the app and starts the foreground streaming service. If you have not entered a
-server IP, it defaults to broadcast discovery so it works without any setup.
+server IP, the app scans the local network for a SlimeVR server (see below) so
+it works without any setup.
 
 ### Troubleshooting a crash on Quest
 
@@ -78,7 +80,7 @@ type an IP. Right-click the tray icon for:
 - **Set SlimeVR IP…** — enter the server address manually (blank = auto-discover).
   Shows this PC's IP to help you check you're on the same network.
 - **Test connection** — confirms the SlimeVR server actually responds.
-- **Re-discover server** — broadcast on the LAN to find SlimeVR again.
+- **Re-discover server** — scan the local network to find SlimeVR again.
 - **Open data folder** — opens the folder containing `config.txt`.
 - **Exit**.
 

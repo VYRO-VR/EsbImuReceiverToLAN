@@ -162,7 +162,7 @@ public class TrackerListenerService : Service {
         string action = intent?.Action ?? "NO_ACTION";
         Log.Info("TrackerListenerService", $"OnStartCommand receiver action: {action}");
 
-        if (action == "com.SebaneStudios.EsbReceiverToLanAndroid.ACTION_USB_DEVICE_ATTACHED") {
+        if (action == "com.vyrovr.connect.ACTION_USB_DEVICE_ATTACHED") {
             var device = intent?.GetParcelableExtra(UsbManager.ExtraDevice) as UsbDevice;
             if (device != null && device.VendorId == 0x1209 && device.ProductId == 0x7690) {
                 if (_trackersHid != null) {
@@ -174,7 +174,7 @@ public class TrackerListenerService : Service {
             return StartCommandResult.Sticky;
         }
 
-        if (action == "com.SebaneStudios.EsbReceiverToLanAndroid.ACTION_USB_DEVICE_DETACHED") {
+        if (action == "com.vyrovr.connect.ACTION_USB_DEVICE_DETACHED") {
             var device = intent?.GetParcelableExtra(UsbManager.ExtraDevice) as UsbDevice;
             if (device != null) {
                 string deviceKey = device.DeviceName ?? device.DeviceId.ToString();
@@ -190,7 +190,7 @@ public class TrackerListenerService : Service {
             return StartCommandResult.NotSticky;
         }
 
-        if (action == "com.SebaneStudios.EsbReceiverToLanAndroid.ACTION_STOP_SERVICE") {
+        if (action == "com.vyrovr.connect.ACTION_STOP_SERVICE") {
             Log.Info("TrackerListenerService", "Stop service action received.");
             StopTrackerWork();
             StopSelf();
