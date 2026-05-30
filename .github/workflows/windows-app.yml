@@ -1,0 +1,82 @@
+name: Windows App
+
+# Builds the Windows system-tray app into a standalone, self-contained .exe so
+# users can download and run it without installing .NET. PRs and manual runs
+# produce a downloadable artifact; pushes to main also publish a rolling
+# "windows-latest" prerelease with the .exe attached.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: .NET info
+        run: dotnet --info
+
+      - name: Publish self-contained single-file exe
+        run: >
+          dotnet publish EsbImuReceiverToLAN/EsbImuReceiverToLAN.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -bl:publish.binlog
+
+      - name: Collect exe
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Recurse -Path EsbImuReceiverToLAN/bin -Filter EsbImuReceiverToLAN.exe |
+                 Where-Object { $_.FullName -like '*publish*' } | Select-Object -First 1
+          if (-not $exe) { Write-Error 'No exe produced'; exit 1 }
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Copy-Item $exe.FullName artifacts/EsbImuReceiverToLAN.exe
+          Write-Host "Found exe: $($exe.FullName)"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EsbImuReceiverToLAN-windows
+          path: artifacts/EsbImuReceiverToLAN.exe
+          if-no-files-found: error
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-log
+          path: publish.binlog
+          if-no-files-found: ignore
+
+      - name: Publish rolling release (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-latest
+          name: Latest Windows tray app
+          prerelease: true
+          files: artifacts/EsbImuReceiverToLAN.exe
+          body: |
+            Automatically built Windows system-tray app from the latest commit
+            on `main` (`${{ github.sha }}`).
+
+            Download and run `EsbImuReceiverToLAN.exe` — it runs in the system
+            tray. Right-click the tray icon to set the SlimeVR IP (or let it
+            auto-discover), then plug in your receiver.

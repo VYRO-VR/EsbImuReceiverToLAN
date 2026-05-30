@@ -34,8 +34,12 @@ public class TrackerListenerService : Service {
         base.OnCreate();
         Log.Info("TrackerListenerService", "Service Created");
         _instance = this;
-        StartTrackerWork();
+        // Promote to foreground FIRST. When started via StartForegroundService the
+        // system requires startForeground() within ~5s or it force-crashes the app
+        // (ForegroundServiceDidNotStartInTimeException). Doing it before any other
+        // work guarantees the contract is met even if startup fails afterwards.
         ShowNotification();
+        StartTrackerWork();
     }
 
 
@@ -137,7 +141,21 @@ public class TrackerListenerService : Service {
             .SetOngoing(true)                 // keeps the notification persistent
             .Build();
 
-        StartForeground(1, notification);
+        try {
+            // API 29+ requires (and API 34+ strictly enforces) declaring the
+            // foreground service type at startForeground time, matching the
+            // android:foregroundServiceType="dataSync" entry in the manifest.
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.Q) {
+                StartForeground(1, notification, ForegroundService.TypeDataSync);
+            } else {
+                StartForeground(1, notification);
+            }
+        } catch (Exception ex) {
+            // Never let foreground promotion take down the whole app — log it so
+            // the failure is diagnosable and keep the service running in the
+            // background where the platform allows it.
+            global::EsbReceiverToLanAndroid.Platforms.Android.CrashLog.Write("ShowNotification", ex);
+        }
     }
 
     public override StartCommandResult OnStartCommand(Intent intent, StartCommandFlags flags, int startId) {
