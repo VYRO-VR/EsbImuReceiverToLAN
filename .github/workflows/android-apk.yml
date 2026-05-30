@@ -2,12 +2,14 @@ name: Android APK
 
 # Builds an installable (sideloadable) Android/Quest APK so users can download
 # it straight from the repo. PRs and manual runs produce a downloadable build
-# artifact; pushes to main also publish a rolling "android-latest" prerelease
-# with the APK attached for a stable download link.
+# artifact; pushes to main publish a rolling "android-latest" prerelease; and
+# pushing a version tag (e.g. v0.1.0) publishes a permanent public release with
+# the APK attached.
 
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
 
@@ -55,7 +57,7 @@ jobs:
             -keystore "$RUNNER_TEMP/ci.keystore" \
             -alias ci -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android -keypass android \
-            -dname "CN=ESB IMU Receiver CI, O=EsbImuReceiverToLAN, C=US"
+            -dname "CN=VYRO VR Connect CI, O=VYRO VR, C=US"
 
       - name: Publish signed APK
         run: |
@@ -79,7 +81,6 @@ jobs:
           if-no-files-found: ignore
 
       - name: Collect APK
-        id: collect
         run: |
           mkdir -p artifacts
           apk=$(find EsbImuReceiverToLanAndroid/bin -name '*-Signed.apk' | head -n1)
@@ -90,14 +91,14 @@ jobs:
             echo "No APK produced" >&2
             exit 1
           fi
-          cp "$apk" "artifacts/EsbImuReceiverToLan.apk"
+          cp "$apk" "artifacts/VYRO-VR-Connect.apk"
           echo "Found APK: $apk"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EsbImuReceiverToLan-apk
-          path: artifacts/EsbImuReceiverToLan.apk
+          name: VYRO-VR-Connect-apk
+          path: artifacts/VYRO-VR-Connect.apk
           if-no-files-found: error
 
       - name: Publish rolling release (main only)
@@ -107,12 +108,31 @@ jobs:
           tag_name: android-latest
           name: Latest Android/Quest APK
           prerelease: true
-          files: artifacts/EsbImuReceiverToLan.apk
+          files: artifacts/VYRO-VR-Connect.apk
           body: |
             Automatically built APK from the latest commit on `main`
             (`${{ github.sha }}`).
 
-            Sideload with `adb install -r EsbImuReceiverToLan.apk` or SideQuest.
+            Sideload with `adb install -r VYRO-VR-Connect.apk` or SideQuest.
             Note: CI uses an ephemeral signing key, so if you already have a
             previous build installed you may need to uninstall it first before
             updating.
+
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: VYRO VR Connect ${{ github.ref_name }}
+          prerelease: false
+          files: artifacts/VYRO-VR-Connect.apk
+          body: |
+            **VYRO VR Connect ${{ github.ref_name }}**
+
+            Quest / Android APK. Sideload with SideQuest or
+            `adb install -r VYRO-VR-Connect.apk`, plug the receiver into your
+            headset, and it auto-finds your PC's SlimeVR server on the same
+            Wi-Fi.
+
+            Note: built with an ephemeral signing key — if a previous build is
+            installed, uninstall it first before installing this one.
