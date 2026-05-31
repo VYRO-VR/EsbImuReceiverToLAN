@@ -20,15 +20,15 @@
     <Configurations>Debug;Release;Release-Phone;Release-Quest</Configurations>
   </PropertyGroup>
 
+  <!-- Local-only signing config (keystore path + passwords). Not committed;
+       copy signing.props.template to signing.props and fill it in. -->
+  <Import Project="signing.props" Condition="Exists('$(MSBuildThisFileDirectory)signing.props')" />
+
   <!-- ========================= -->
   <!-- Phone Release Build -->
   <!-- ========================= -->
   <PropertyGroup Condition="&#xD;&#xA;    '$(Configuration)'=='Release-Phone' &#xD;&#xA;    and '$(TargetFrameworkIdentifier)'=='android'">
-    <AndroidKeyStore>true</AndroidKeyStore>
-    <AndroidSigningStore>I:\Visual Studio\EsbImuReceiverToLAN\smolslimetolan.keystore</AndroidSigningStore>
-    <AndroidSigningKeyAlias>smolslimetolan</AndroidSigningKeyAlias>
-    <AndroidSigningKeyPass>2b703a48-a227-455f-9a10-66cbbac19535</AndroidSigningKeyPass>
-    <AndroidSigningStorePass>2b703a48-a227-455f-9a10-66cbbac19535</AndroidSigningStorePass>
+    <!-- Signing (keystore + passwords) comes from the gitignored signing.props; see signing.props.template. -->
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidLinkMode>None</AndroidLinkMode>
 
@@ -40,11 +40,7 @@
   <!-- Meta Quest Release Build -->
   <!-- ========================= -->
   <PropertyGroup Condition="&#xD;&#xA;    '$(Configuration)'=='Release-Quest' &#xD;&#xA;    and '$(TargetFrameworkIdentifier)'=='android'">
-    <AndroidKeyStore>true</AndroidKeyStore>
-    <AndroidSigningStore>I:\Visual Studio\EsbImuReceiverToLAN\smolslimetolan.keystore</AndroidSigningStore>
-    <AndroidSigningKeyAlias>smolslimetolan</AndroidSigningKeyAlias>
-    <AndroidSigningKeyPass>2b703a48-a227-455f-9a10-66cbbac19535</AndroidSigningKeyPass>
-    <AndroidSigningStorePass>2b703a48-a227-455f-9a10-66cbbac19535</AndroidSigningStorePass>
+    <!-- Signing (keystore + passwords) comes from the gitignored signing.props; see signing.props.template. -->
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidLinkMode>None</AndroidLinkMode>
 
