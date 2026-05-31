@@ -33,6 +33,7 @@ public class TrackerListenerService : Service {
     public override void OnCreate() {
         base.OnCreate();
         Log.Info("TrackerListenerService", "Service Created");
+        global::EsbReceiverToLanAndroid.DiagnosticsLog.Write("Receiver service started.");
         _instance = this;
         // Promote to foreground FIRST. When started via StartForegroundService the
         // system requires startForeground() within ~5s or it force-crashes the app
@@ -85,8 +86,10 @@ public class TrackerListenerService : Service {
                     } catch { /* best effort */ }
                     global::EsbReceiverToLanAndroid.RecentServers.Add(ip);
                     Log.Info("TrackerListenerService", $"Discovered SlimeVR server at {ip}");
+                    global::EsbReceiverToLanAndroid.DiagnosticsLog.Write($"Auto-discovered SlimeVR server at {ip}; streaming there.");
                 } else if (servers.Count > 1) {
                     Log.Info("TrackerListenerService", $"{servers.Count} SlimeVR servers found; waiting for user to choose.");
+                    global::EsbReceiverToLanAndroid.DiagnosticsLog.Write($"{servers.Count} SlimeVR servers found — open the app to pick your PC.");
                 }
             } catch (Exception ex) {
                 Log.Warn("TrackerListenerService", $"Server scan failed: {ex.Message}");

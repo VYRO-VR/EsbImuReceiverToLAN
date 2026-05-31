@@ -52,6 +52,11 @@ public static class CrashLog
         }
         catch { /* logging must never throw */ }
 
+        // Surface errors in the in-app Activity log too, so they're visible on a
+        // headset without pulling the crash file.
+        try { DiagnosticsLog.Write($"Error ({source}): {ex?.Message}"); }
+        catch { /* logging must never throw */ }
+
         try
         {
             lock (_gate)

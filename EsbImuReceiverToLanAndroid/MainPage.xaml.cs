@@ -26,6 +26,7 @@ public partial class MainPage : ContentPage
     private bool _scanning;
     private bool _autoScanDone;
     private DateTime _discoveryStartedUtc = DateTime.MinValue;
+    private volatile bool _logDirty = true;
 
     public MainPage()
     {
@@ -36,6 +37,8 @@ public partial class MainPage : ContentPage
         TrackerUsbReceiver.OnDeviceConnected += OnDeviceConnected;
         TrackerUsbReceiver.OnDeviceDisconnected += OnDeviceDisconnected;
         SlimeImuProtocol.SlimeVR.UDPHandler.OnServerDiscovered += OnServerDiscovered;
+        DiagnosticsLog.Changed += () => _logDirty = true;
+        DiagnosticsLog.Write("App opened.");
     }
 
     private void InitializeConnectionUi()
@@ -101,9 +104,11 @@ public partial class MainPage : ContentPage
         testButton.IsEnabled = false;
         statusLabel.Text = "Scanning network for SlimeVR…";
         statusLabel.TextColor = Colors.LightGreen;
+        DiagnosticsLog.Write("Scanning local network for SlimeVR server…");
         try
         {
             var servers = await ServerScan.FindAllAsync(TimeSpan.FromSeconds(8));
+            DiagnosticsLog.Write($"Scan finished: {servers.Count} SlimeVR server(s) found.");
             if (servers.Count == 0)
             {
                 statusLabel.Text = "No SlimeVR found. Check it's running and on the same Wi-Fi as this headset.";
@@ -150,6 +155,7 @@ public partial class MainPage : ContentPage
             ? $"Connected to SlimeVR at {server.Ip}"
             : $"Connected to {server.Name} ({server.Ip})";
         statusLabel.TextColor = Colors.LightGreen;
+        DiagnosticsLog.Write($"Using SlimeVR server {server.Display}.");
     }
 
     private void CheckDiscoveryTip()
@@ -182,6 +188,7 @@ public partial class MainPage : ContentPage
         if (string.IsNullOrWhiteSpace(ip))
             return;
         _serverConfirmed = true;
+        DiagnosticsLog.Write($"SlimeVR server responded at {ip}.");
         RecentServers.Add(ip);
         MainThread.BeginInvokeOnMainThread(() =>
         {
@@ -239,6 +246,7 @@ public partial class MainPage : ContentPage
 
     private void OnDeviceConnected(object? sender, EventArgs e)
     {
+        DiagnosticsLog.Write("Receiver dongle connected.");
         MainThread.BeginInvokeOnMainThread(() =>
         {
             startButton.Text = "Stop";
@@ -250,6 +258,7 @@ public partial class MainPage : ContentPage
 
     private void OnDeviceDisconnected(object? sender, EventArgs e)
     {
+        DiagnosticsLog.Write("Receiver dongle disconnected.");
         MainThread.BeginInvokeOnMainThread(() =>
         {
             startButton.Text = "Start";
@@ -263,7 +272,27 @@ public partial class MainPage : ContentPage
     {
         CheckDiscoveryTip();
         var snapshot = TrackerListenerService.Instance?.GetTrackerSnapshot();
-        MainThread.BeginInvokeOnMainThread(() => UpdateTrackerUI(snapshot));
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UpdateTrackerUI(snapshot);
+            RefreshLogIfDirty();
+        });
+    }
+
+    private void RefreshLogIfDirty()
+    {
+        if (!_logDirty) return;
+        _logDirty = false;
+        var text = DiagnosticsLog.Snapshot();
+        logLabel.Text = string.IsNullOrEmpty(text) ? "Waiting for activity…" : text;
+        // Keep the newest line in view.
+        try { _ = logScroll.ScrollToAsync(logLabel, ScrollToPosition.End, false); } catch { /* layout not ready */ }
+    }
+
+    private void ClearLogButton_Clicked(object? sender, EventArgs e)
+    {
+        DiagnosticsLog.Clear();
+        DiagnosticsLog.Write("Log cleared.");
     }
 
     private void UpdateTrackerUI(TrackerSnapshot? snapshot)
