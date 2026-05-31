@@ -1,12 +1,14 @@
 # VYRO VR Connect
 
-This projects allows extending the range of smol slimes/butterflies by allowing their data to be repeated over UDP via the side of a quest headset, cellphone, ESP32-S3 or any other device with USB port support, and a wifi antenna.
+This project extends the range of smol slimes/butterflies by repeating their
+data over UDP from a standalone headset. Plug the ESB receiver dongle into the
+USB-C port of a Quest or Pico headset (or an Android phone) and the app relays
+the trackers to your SlimeVR server over Wi-Fi.
 
-Potential use cases are extending the effective range of the trackers from just 10 meters to the entire range of cell tower service, or the range of wifi routers.
+Instead of the dongle being limited to ~10 meters from a PC, the trackers now
+reach as far as the headset's own Wi-Fi connection.
 
-Also useful for ShadowPC users.
-
-Current supported platforms are Windows, Quest, Android, and ESP32-S3
+Supported platforms: Meta Quest, Pico, and Android.
 
 ## How it works
 
@@ -28,9 +30,7 @@ guessing.
 
 | Folder | Platform | Notes |
 | --- | --- | --- |
-| `EsbImuReceiverToLAN/` | Windows | .NET 10 console app (`HidSharp`). |
-| `EsbImuReceiverToLanAndroid/` | Android / Meta Quest | .NET 10 MAUI app. |
-| `EsbImuReceiverToLanESP32/` | ESP32-S3 | PlatformIO WiFi relay firmware. |
+| `EsbImuReceiverToLanAndroid/` | Android / Meta Quest / Pico | .NET 10 MAUI app. |
 | `SlimeImuProtocol/` | shared | Git submodule with the SlimeVR UDP protocol. |
 
 Clone with submodules (or run `git submodule update --init --recursive` after
@@ -40,22 +40,22 @@ cloning):
 git clone --recursive <repo-url>
 ```
 
-## Android / Meta Quest
+## Android / Meta Quest / Pico
 
-Build configurations:
-
-- `Release-Phone` — phone build, uses `Platforms/Android/AndroidManifest.xml`.
-- `Release-Quest` — Quest build, uses `Platforms/Android/AndroidManifest.Quest.xml`.
+Build the APK:
 
 ```
-dotnet build EsbImuReceiverToLanAndroid/EsbImuReceiverToLanAndroid.csproj -c Release-Quest -f net10.0-android
+dotnet build EsbImuReceiverToLanAndroid/EsbImuReceiverToLanAndroid.csproj -c Release -f net10.0-android
 ```
+
+The app targets Android API 34 (the highest API supported by Horizon OS) and
+runs on API 29+.
 
 Sideload the resulting APK with `adb install -r <path-to-apk>` (or SideQuest).
-On Quest the app appears under *Apps → Unknown Sources*. Plug the receiver into
-the headset's USB-C port (a powered adapter helps); the app launches on attach
-and starts streaming. With no server IP entered it auto-discovers SlimeVR on
-the LAN.
+On Quest/Pico the app appears under *Apps → Unknown Sources*. Plug the receiver
+into the headset's USB-C port (a powered adapter helps); the app launches on
+attach and starts streaming. With no server IP entered it auto-discovers
+SlimeVR on the LAN.
 
 ### Plug-and-play behaviour
 
@@ -75,25 +75,3 @@ Unhandled exceptions are captured to:
 Pull it with `adb pull` (or a file browser over MTP) — no root required. The
 most recent crash is also shown in a dialog the next time the app opens, and
 mirrored to logcat under the `EsbCrash` tag (`adb logcat -s EsbCrash`).
-
-## Windows
-
-A lightweight system-tray app (WinForms). It runs in the background with a tray
-icon and **auto-discovers your SlimeVR server** — in the common case you never
-type an IP. Right-click the tray icon for:
-
-- **Recent servers** — pick a previously used server.
-- **Set SlimeVR IP…** — enter the server address manually (blank = auto-discover).
-  Shows this PC's IP to help you check you're on the same network.
-- **Test connection** — confirms the SlimeVR server actually responds.
-- **Re-discover server** — scan the local network to find SlimeVR again.
-- **Open data folder** — opens the folder containing `config.txt`.
-- **Exit**.
-
-The status line shows *Searching → Connected to 192.168.x.x*, this PC's IP, and
-whether trackers are detected. If no server is found after ~10s it nudges you to
-check SlimeVR is running and the PC is on the same network. Build/run on Windows:
-
-```
-dotnet run --project EsbImuReceiverToLAN/EsbImuReceiverToLAN.csproj
-```
