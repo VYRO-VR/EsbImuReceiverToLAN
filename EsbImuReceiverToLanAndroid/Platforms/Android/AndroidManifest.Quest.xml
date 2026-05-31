@@ -3,6 +3,7 @@
           xmlns:tools="http://schemas.android.com/tools"
           package="com.vyrovr.connect">
 
+  <uses-sdk android:targetSdkVersion="34" />
   <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" tools:node="remove" />
   <uses-permission android:name="android.permission.START_FOREGROUND_SERVICES_FROM_BACKGROUND" tools:node="remove" />
 	<uses-permission android:name="android.permission.INTERNET" />
