@@ -50,8 +50,12 @@ data class Battery(override val deviceId: Int, val percent: Int, val voltage: Fl
  */
 object PacketParser {
 
-    /** Acceleration axis remap used by the original app: (x, z, -y). */
-    private fun unsandwich(x: Float, y: Float, z: Float) = floatArrayOf(x, z, -y)
+    /**
+     * Acceleration axis correction from the original app. The C# `Unsandwich`
+     * rotates the vector by +90° about Z (quaternion sandwich
+     * q*v*q⁻¹ with q = axis-angle(Z, +π/2)), which maps (x, y, z) -> (-y, x, z).
+     */
+    private fun unsandwich(x: Float, y: Float, z: Float) = floatArrayOf(-y, x, z)
 
     fun parse(buf: ByteArray, offset: Int, out: MutableList<EsbEvent>) {
         fun u8(i: Int) = buf[offset + i].toInt() and 0xFF
