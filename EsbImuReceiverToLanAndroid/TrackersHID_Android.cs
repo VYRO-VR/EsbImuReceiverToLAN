@@ -186,6 +186,7 @@ namespace EsbImuReceiverToLan.Tracking.Trackers.HID
             if (connection == null)
             {
                 Console.WriteLine($"[TrackersHID_Android] Failed to open USB device {deviceKey}.");
+                global::EsbReceiverToLanAndroid.DiagnosticsLog.Write("Failed to open the receiver dongle (permission denied or in use?).");
                 return;
             }
             UsbInterface usbInterface = device.GetInterface(2);
@@ -213,6 +214,7 @@ namespace EsbImuReceiverToLan.Tracking.Trackers.HID
             }
 
             Console.WriteLine($"[TrackersHID_Android] Opened USB dongle: {deviceKey} (total: {openDevices.Count})");
+            global::EsbReceiverToLanAndroid.DiagnosticsLog.Write($"Opened receiver dongle (now {openDevices.Count} connected). Reading tracker data…");
 
             var readThread = new Thread(() => DeviceReadLoop(deviceKey)) { IsBackground = true };
             lock (deviceReadThreads)
@@ -249,6 +251,7 @@ namespace EsbImuReceiverToLan.Tracking.Trackers.HID
                 trackersConsumer?.Invoke(this, imuTracker);
 
                 Console.WriteLine($"[TrackerServer] Added sensor {trackerId} for {device.Name}, type {sensorType}");
+                global::EsbReceiverToLanAndroid.DiagnosticsLog.Write($"Tracker detected: {imuTracker.DisplayName} ({sensorType}).");
             }
             else
             {

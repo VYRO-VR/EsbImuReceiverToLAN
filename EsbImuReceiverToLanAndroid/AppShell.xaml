@@ -5,10 +5,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:EsbReceiverToLanAndroid"
     Shell.FlyoutBehavior="Disabled"
-    Title="ESB IMU Receiver">
+    Title="VYRO VR Connect">
 
     <ShellContent
-        Title="ESB IMU Receiver"
+        Title="VYRO VR Connect"
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
 
