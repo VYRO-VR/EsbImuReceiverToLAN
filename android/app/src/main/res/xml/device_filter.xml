@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ESB tracker receiver dongle: VID 0x1209 (4617), PID 0x7690 (30352) -->
+    <usb-device vendor-id="4617" product-id="30352" />
+</resources>
