@@ -1,5 +1,6 @@
 package com.vyrovr.connect.data
 
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -7,6 +8,9 @@ import kotlinx.coroutines.flow.update
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/** Logcat tag for the whole app: `adb logcat -s VyroVrConnect:*`. */
+const val TAG = "VyroVrConnect"
 
 /** Shared, observable UI state. Written by the service, observed by Compose. */
 object AppState {
@@ -29,7 +33,16 @@ object AppState {
     fun setTrackerCount(n: Int) { _trackerCount.value = n }
 
     fun log(msg: String) {
+        Log.i(TAG, msg)
         val line = "${fmt.format(Date())}  $msg"
+        _log.update { (it + line).takeLast(200) }
+    }
+
+    /** Log an error to both the on-screen activity log and logcat (with stacktrace). */
+    fun logError(msg: String, t: Throwable? = null) {
+        Log.e(TAG, msg, t)
+        val detail = t?.message?.let { ": $it" } ?: ""
+        val line = "${fmt.format(Date())}  ERROR: $msg$detail"
         _log.update { (it + line).takeLast(200) }
     }
 

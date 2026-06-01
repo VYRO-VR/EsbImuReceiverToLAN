@@ -1,5 +1,6 @@
 package com.vyrovr.connect.slime
 
+import com.vyrovr.connect.data.AppState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -9,6 +10,7 @@ import kotlinx.coroutines.launch
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -35,13 +37,18 @@ class SlimeUdpClient(
     @Volatile var isConnected: Boolean = false
         private set
     private val jobs = mutableListOf<Job>()
+    /** Avoids spamming the log: only the first send failure is reported. */
+    private val sendErrorLogged = AtomicBoolean(false)
 
     private fun next() = packetId.getAndIncrement()
 
     private fun send(data: ByteArray) {
         try {
             socket.send(DatagramPacket(data, data.size))
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (sendErrorLogged.compareAndSet(false, true)) {
+                AppState.logError("UDP send to $address failed", e)
+            }
         }
     }
 
@@ -52,6 +59,7 @@ class SlimeUdpClient(
     }
 
     private suspend fun handshakeLoop() {
+        AppState.log("Handshaking with SlimeVR at $address ($identifier)")
         while (scope.isActive && !isConnected) {
             send(SlimePackets.handshake(next(), boardType, imuType, mcuType, magStatus, identifier, mac))
             delay(500)
@@ -80,6 +88,7 @@ class SlimeUdpClient(
             if (text.contains(SlimePackets.DISCOVERY_REPLY)) {
                 if (!isConnected) {
                     isConnected = true
+                    AppState.log("SlimeVR accepted handshake ($identifier) — streaming")
                     send(SlimePackets.sensorInfo(next(), 0, imuType))
                 }
                 continue

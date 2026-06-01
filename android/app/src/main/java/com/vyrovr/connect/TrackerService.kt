@@ -130,16 +130,21 @@ class TrackerService : Service() {
         val info = infos[id] ?: return
         val ip = serverIp ?: return
         val mac = macs[id] ?: ByteArray(6).also { it[5] = id.toByte() }
-        val client = SlimeUdpClient(
-            scope = scope,
-            serverIp = ip,
-            identifier = "${info.firmware}_EsbToLan_$id",
-            mac = mac,
-            boardType = info.boardType,
-            imuType = info.imuType,
-            mcuType = info.mcuType,
-            magStatus = info.magStatus,
-        )
+        val client = try {
+            SlimeUdpClient(
+                scope = scope,
+                serverIp = ip,
+                identifier = "${info.firmware}_EsbToLan_$id",
+                mac = mac,
+                boardType = info.boardType,
+                imuType = info.imuType,
+                mcuType = info.mcuType,
+                magStatus = info.magStatus,
+            )
+        } catch (e: Exception) {
+            AppState.logError("Could not open UDP client for tracker $id ($ip)", e)
+            return
+        }
         clients[id] = client
         client.start()
         AppState.setTrackerCount(clients.size)
