@@ -9,8 +9,8 @@
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationTitle>VYRO VR Connect</ApplicationTitle>
-    <ApplicationId>com.vyrovr.connect</ApplicationId>
+    <ApplicationTitle>VYRO VR</ApplicationTitle>
+    <ApplicationId>com.vyrovr.vr</ApplicationId>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
     <WindowsPackageType>None</WindowsPackageType>

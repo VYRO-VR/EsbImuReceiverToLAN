@@ -4,11 +4,13 @@ plugins {
 }
 
 android {
+    // Internal code namespace stays as-is (invisible to users/Meta); only the
+    // installed applicationId is the new, never-registered package.
     namespace = "com.vyrovr.connect"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.vyrovr.connect"
+        applicationId = "com.vyrovr.vr"
         minSdk = 26
         // Horizon OS (Quest) accepts up to API 34.
         targetSdk = 34

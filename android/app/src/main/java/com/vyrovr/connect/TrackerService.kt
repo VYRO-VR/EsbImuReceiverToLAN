@@ -182,7 +182,7 @@ class TrackerService : Service() {
             )
         }
         return Notification.Builder(this, channelId)
-            .setContentTitle("VYRO VR Connect")
+            .setContentTitle("VYRO VR")
             .setContentText("Streaming trackers to SlimeVR")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOngoing(true)

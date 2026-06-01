@@ -14,7 +14,7 @@
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
 	<uses-feature android:name="android.hardware.usb.host" />
-    <application android:label="VYRO VR Connect" android:icon="@mipmap/ic_launcher">
+    <application android:label="VYRO VR" android:icon="@mipmap/ic_launcher">
 <service android:name=".Platforms.Android.Services.TrackerListenerService"
          android:enabled="true"
          android:exported="true"

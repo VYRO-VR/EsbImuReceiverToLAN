@@ -40,7 +40,7 @@ fun AppUi(onStart: (String?) -> Unit, onStop: () -> Unit) {
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("VYRO VR Connect", style = MaterialTheme.typography.headlineSmall)
+                Text("VYRO VR", style = MaterialTheme.typography.headlineSmall)
                 Text("Streams SlimeVR tracker data to your PC over Wi-Fi")
 
                 OutlinedTextField(
