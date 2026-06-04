@@ -1,0 +1,67 @@
+name: Android Native
+
+# Builds the native Kotlin app under android/. Uploads a debug APK artifact on
+# every run, and publishes a stable "native-latest" prerelease (no login needed
+# to download) on pushes to main or the active dev branch.
+
+on:
+  push:
+    branches: [ main, claude/wizardly-curie-smn33 ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Stage APK
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          cp app/build/outputs/apk/debug/*.apk "$GITHUB_WORKSPACE/dist/vyro-vr.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyro-vr-native-debug
+          path: dist/vyro-vr.apk
+          if-no-files-found: error
+
+      - name: Publish rolling native release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: native-latest
+          name: Latest native VYRO VR APK
+          prerelease: true
+          files: dist/vyro-vr.apk
+          body: |
+            Automatically built native Kotlin APK from `${{ github.ref_name }}`
+            (`${{ github.sha }}`), package id `com.vyrovr.vr`.
+
+            Sideload with `adb install -r vyro-vr.apk` or SideQuest. CI signs with
+            an ephemeral debug key, so uninstall any previous build first.
