@@ -1,4 +1,4 @@
-# VYRO VR Connect
+# VYRO VR
 
 This project extends the range of smol slimes/butterflies by repeating their
 data over UDP from a standalone headset. Plug the ESB receiver dongle into the
@@ -20,66 +20,39 @@ them.
 
 ## How it works
 
-The ESB receiver dongle (VID `0x1209`, PID `0x7690`) enumerates as a USB HID
-device and emits fixed 16-byte packets containing per-tracker rotation,
-acceleration, battery and signal data. The host app reads those packets and
-re-emits them to a SlimeVR server over UDP using the SlimeVR feeder protocol
-(`SlimeImuProtocol` submodule). SlimeVR Server itself is the listener (it binds
-UDP `6969`); the app is just a client that impersonates a normal SlimeVR Wi-Fi
-tracker, so no extra software is needed on the PC.
+The ESB receiver dongle (VID `0x1209`, PID `0x7690`) enumerates as a USB device
+and emits fixed 16-byte packets containing per-tracker rotation, acceleration,
+battery and signal data. The app reads those packets and re-emits them to a
+SlimeVR server over UDP using the SlimeVR feeder protocol. SlimeVR Server itself
+is the listener (it binds UDP `6969`); the app is just a client that impersonates
+a normal SlimeVR Wi-Fi tracker, so no extra software is needed on the PC.
 
 If no server IP is configured, the app scans the local network (every host on
-the /24, on port 6969) to find the SlimeVR server automatically. If more than
-one SlimeVR server is found — e.g. two players on the same network — the app
-lists each PC (hostname + IP) and lets you pick the right one rather than
-guessing.
+the /24, on port 6969) to find the SlimeVR server automatically.
 
-## Projects
+## Building
 
-| Folder | Platform | Notes |
-| --- | --- | --- |
-| `EsbImuReceiverToLanAndroid/` | Android / Meta Quest / Pico | .NET 10 MAUI app. |
-| `SlimeImuProtocol/` | shared | Git submodule with the SlimeVR UDP protocol. |
-
-Clone with submodules (or run `git submodule update --init --recursive` after
-cloning):
+The app is a native Kotlin/Android project under `android/`:
 
 ```
-git clone --recursive <repo-url>
-```
-
-## Android / Meta Quest / Pico
-
-Build the APK:
-
-```
-dotnet build EsbImuReceiverToLanAndroid/EsbImuReceiverToLanAndroid.csproj -c Release -f net10.0-android
+cd android
+gradle assembleDebug
 ```
 
 The app targets Android API 34 (the highest API supported by Horizon OS) and
-runs on API 29+.
+runs on API 26+.
 
 Sideload the resulting APK with `adb install -r <path-to-apk>` (or SideQuest).
 On Quest/Pico the app appears under *Apps → Unknown Sources*. Plug the receiver
 into the headset's USB-C port (a powered adapter helps); the app launches on
-attach and starts streaming. With no server IP entered it auto-discovers
-SlimeVR on the LAN.
+attach and starts streaming. With no server IP entered it auto-discovers SlimeVR
+on the LAN.
 
-### Plug-and-play behaviour
+## Debugging
 
-Plugging in the dongle fires the `USB_DEVICE_ATTACHED` intent, which launches
-the app and starts the foreground streaming service. If you have not entered a
-server IP, the app scans the local network for a SlimeVR server (see below) so
-it works without any setup.
-
-### Troubleshooting a crash on Quest
-
-Unhandled exceptions are captured to:
+The app logs its full pipeline to both an on-screen activity log and Android's
+system log under the tag `VyroVrConnect`:
 
 ```
-/sdcard/Android/data/com.vyrovr.connect/files/crash.log
+adb logcat -s VyroVrConnect:* AndroidRuntime:*
 ```
-
-Pull it with `adb pull` (or a file browser over MTP) — no root required. The
-most recent crash is also shown in a dialog the next time the app opens, and
-mirrored to logcat under the `EsbCrash` tag (`adb logcat -s EsbCrash`).
