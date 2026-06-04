@@ -10,6 +10,14 @@ reach as far as the headset's own Wi-Fi connection.
 
 Supported platforms: Meta Quest, Pico, and Android.
 
+## Credits
+
+Original concept and implementation by **[Sebane1](https://github.com/Sebane1)**
+— see the original project at
+[Sebane1/EsbImuReceiverToLAN](https://github.com/Sebane1/EsbImuReceiverToLAN).
+This project builds on that idea. Full credit for the original design goes to
+them.
+
 ## How it works
 
 The ESB receiver dongle (VID `0x1209`, PID `0x7690`) enumerates as a USB HID
